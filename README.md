@@ -29,7 +29,7 @@ We define a novel graph-based representation of neural networks called *relation
 We recommend using Conda package manager
 
 ```bash
-conda create -n graph2nn python=3.6
+conda create -n graph2nn python=3.9
 conda activate graph2nn
 ```
 
