@@ -44,7 +44,7 @@ def purge(dir, pattern):
 def gen(dir_in, dir_out, fname_base, vars_label, vars_alias, vars_value):
     '''Generate yaml files'''
     with open(dir_in + fname_base + '.yaml') as f:
-        data_base = yaml.load(f)
+        data_base = yaml.load(f, Loader=yaml.FullLoader)
 
     for vars in vars_value:
         data = data_base.copy()
@@ -64,7 +64,7 @@ def gen(dir_in, dir_out, fname_base, vars_label, vars_alias, vars_value):
 def gen_single(dir_in, dir_out, fname_base, vars_label, vars_alias, vars, comment='best'):
     '''Generate yaml files for a single experiment'''
     with open(dir_in + fname_base + '.yaml') as f:
-        data_base = yaml.load(f)
+        data_base = yaml.load(f, Loader=yaml.FullLoader)
 
     data = data_base.copy()
     fname_new = '{}_{}'.format(fname_base, comment)
@@ -254,6 +254,13 @@ elif args.task == 'mlp_cifar10_bio':
                     'ws', 1.0, 0.0, 'sum',
                     1, 1, 6, True,
                     0, True, True, 200]]
+
+elif args.task == 'vit_cifar10':
+    best_id = 0  # Placeholder; update as needed based on experimental results
+    fname_bases = ['vit_bs128_1gpu']
+    # Define typical ViT hyperparameters
+    vars_value += [['vit', 4, 256, 8, 12, 100]]  # Example configuration: patch_size=4, embed_dim=256, num_heads=8, depth=12, max_epochs=100
+
 
 if 'cifar' in args.task:
     dir_name = 'cifar10'

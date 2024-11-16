@@ -21,48 +21,52 @@ then
 elif [ "$TASK" = "cnn_imagenet" ]
 then
     DATASET='imagenet'
-    if [ "GPU" = 1 ]
+    if [ "$GPU" = 1 ]
     then
-    PREFIX='cnn6_bs32_1gpu_64d'
+        PREFIX='cnn6_bs32_1gpu_64d'
     else
-    PREFIX='cnn6_bs256_8gpu_64d'
+        PREFIX='cnn6_bs256_8gpu_64d'
     fi
 elif [ "$TASK" = "resnet34_imagenet" ]
 then
     DATASET='imagenet'
-    if [ "GPU" = 1 ]
+    if [ "$GPU" = 1 ]
     then
-    PREFIX='R-34_bs32_1gpu'
+        PREFIX='R-34_bs32_1gpu'
     else
-    PREFIX='R-34_bs256_8gpu'
+        PREFIX='R-34_bs256_8gpu'
     fi
 elif [ "$TASK" = "resnet34sep_imagenet" ]
 then
     DATASET='imagenet'
-    if [ "GPU" = 1 ]
+    if [ "$GPU" = 1 ]
     then
-    PREFIX='R-34_bs32_1gpu'
+        PREFIX='R-34_bs32_1gpu'
     else
-    PREFIX='R-34_bs256_8gpu'
+        PREFIX='R-34_bs256_8gpu'
     fi
 elif [ "$TASK" = "resnet50_imagenet" ]
 then
     DATASET='imagenet'
-    if [ "GPU" = 1 ]
+    if [ "$GPU" = 1 ]
     then
-    PREFIX='R-50_bs32_1gpu'
+        PREFIX='R-50_bs32_1gpu'
     else
-    PREFIX='R-50_bs256_8gpu'
+        PREFIX='R-50_bs256_8gpu'
     fi
 elif [ "$TASK" = "efficient_imagenet" ]
 then
     DATASET='imagenet'
-    if [ "GPU" = 1 ]
+    if [ "$GPU" = 1 ]
     then
-    PREFIX='EN-B0_bs64_1gpu_nms'
+        PREFIX='EN-B0_bs64_1gpu_nms'
     else
-    PREFIX='EN-B0_bs512_8gpu_nms'
+        PREFIX='EN-B0_bs512_8gpu_nms'
     fi
+elif [ "$TASK" = "vit_cifar10" ]
+then
+    DATASET='cifar10'
+    PREFIX='vit_bs128_1gpu'  # Assuming 'vit_bs128_1gpu' is the prefix for ViT configs
 else
    exit 1
 fi
@@ -79,6 +83,7 @@ do
             echo ${CONFIG}
             # run one model at a time
             # Note: with slurm scheduler, one can run multiple jobs in parallel
+#            echo "python tools/train_net.py --cfg configs/baselines/${DATASET}/${TASK}/${DIVISION}/${CONFIG}.yaml TRAIN.AUTO_RESUME False OUT_DIR checkpoint/${DATASET}/${TASK}/${DIVISION}/${CONFIG} BN.USE_PRECISE_STATS True LOG_DEST $OUT"
             python tools/train_net.py --cfg configs/baselines/${DATASET}/${TASK}/${DIVISION}/${CONFIG}.yaml TRAIN.AUTO_RESUME False OUT_DIR checkpoint/${DATASET}/${TASK}/${DIVISION}/${CONFIG} BN.USE_PRECISE_STATS True LOG_DEST $OUT
         fi
     fi

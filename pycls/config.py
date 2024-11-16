@@ -360,6 +360,16 @@ _C.ONLINE_FLOPS = False
 # Whether use Tensorboard
 _C.TENSORBOARD = False
 
+# VisTransformer
+_C.VIT = CN()
+_C.VIT.IMG_SIZE = 32
+_C.VIT.PATCH_SIZE = 4
+_C.VIT.EMBED_DIM = 256
+_C.VIT.DEPTH = 12
+_C.VIT.NUM_HEADS = 8
+_C.VIT.MLP_RATIO = 4.0
+_C.VIT.DROPOUT = 0.1
+
 
 def assert_cfg():
     """Checks config values invariants."""
