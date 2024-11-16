@@ -19,6 +19,7 @@ class PatchEmbedding(nn.Module):
         x = x.flatten(2).transpose(1, 2)  # (B, num_patches, embed_dim)
         return x
 
+
 class TransformerBlock(nn.Module):
     def __init__(self, embed_dim, num_heads, mlp_ratio=4.0, dropout=0.1):
         super().__init__()
@@ -37,28 +38,31 @@ class TransformerBlock(nn.Module):
         x = x + self.mlp(self.norm2(x))
         return x
 
+
 class VisionTransformer(nn.Module):
-    def __init__(self, img_size=224, patch_size=16, num_classes=1000, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4.0, dropout=0.1):
+    def __init__(self, img_size=32, patch_size=4, embed_dim=256, depth=12, num_heads=8, mlp_ratio=4.0, num_classes=10):
         super().__init__()
-        self.patch_embed = PatchEmbedding(img_size, patch_size, 3, embed_dim)
+        self.patch_embed = PatchEmbedding(img_size, patch_size, in_channels=3, embed_dim=embed_dim)
+        num_patches = (img_size // patch_size) ** 2
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
-        self.pos_embed = nn.Parameter(torch.zeros(1, (img_size // patch_size) ** 2 + 1, embed_dim))
-        self.blocks = nn.Sequential(*[
-            TransformerBlock(embed_dim, num_heads, mlp_ratio, dropout) for _ in range(depth)
+        self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim))  # +1 for cls token
+        self.blocks = nn.ModuleList([
+            TransformerBlock(embed_dim, num_heads, mlp_ratio)
+            for _ in range(depth)
         ])
         self.norm = nn.LayerNorm(embed_dim)
         self.head = nn.Linear(embed_dim, num_classes)
 
     def forward(self, x):
+        x = self.patch_embed(x)  # Patch embedding
         B = x.shape[0]
-        x = self.patch_embed(x)
         cls_token = self.cls_token.expand(B, -1, -1)
-        x = torch.cat((cls_token, x), dim=1)
-        x = x + self.pos_embed
-        x = self.blocks(x)
-        x = self.norm(x[:, 0])  # cls_token output
-        x = self.head(x)
-        return x
+        x = torch.cat((cls_token, x), dim=1)  # Add class token
+        x += self.pos_embed  # Add positional embedding
+        for block in self.blocks:
+            x = block(x)
+        x = self.norm(x[:, 0])  # Take the class token
+        return self.head(x)
 
 def build_vit():
     return VisionTransformer(
