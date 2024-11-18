@@ -145,112 +145,78 @@ def align_results(names_all, results_all, trainseed_num, baseline_transform, gra
 
 ### align graph_configs and experiment results for each bin
 # used when multiple graphs present in a bin
-def align_results_bin(names_all, results_all, trainseed_num, baseline_transform, graph_num, node_num=64,
-                      return_sweet_spot=False):
+def align_results_bin(names_all, results_all, trainseed_num, baseline_transform, graph_num, node_num=64, return_sweet_spot=False):
     ### View results over different number of graphs
-    graph_configs = np.load('graphs_n{}_{}.npy'.format(node_num, graph_num))
+    graph_configs = np.load(f'/Users/khoapham/msu/graph2nn/analysis/graphs_n{node_num}_{graph_num}.npy')
+    graph_configs = graph_configs[graph_configs[:, 1] < 1]  # Exclude complete graph
 
-    graph_configs = graph_configs[graph_configs[:, 1] < 1, :]
     result_final = []
     graph_configs_missing = []
     significant_new = []
+
     for i in range(graph_configs.shape[0]):
-        key = [str(float(round(graph_configs[i, 1], 6))), str(float(round(graph_configs[i, 2], 6))), 'sum',
-               str(round(graph_configs[i, 3], 0))]
+        key = [
+            str(float(round(graph_configs[i, 1], 6))),
+            str(float(round(graph_configs[i, 2], 6))),
+            'sum',
+            str(round(graph_configs[i, 3], 0))
+        ]
         loc = np.where((names_all[:, 4:8] == key).all(axis=1))[0]
+
         if len(loc) > 0:
             for j in range(results_all.shape[1]):
                 temp = np.zeros(graph_configs.shape[1] + 2)
                 temp[:graph_configs.shape[1]] = graph_configs[i, :]
-                temp[graph_configs.shape[1]:] = [results_all[loc, j, 3], 1]
+                temp[graph_configs.shape[1]:] = [np.mean(results_all[loc, j, 3]), 1]  # Safely assign mean value
                 result_final.append(temp)
         else:
-            print('not found', key, 'order', i)
+            print('Not found:', key, 'order:', i)
             graph_configs_missing.append(i)
+
     try:
         baseline_id = names_all[:, 0] == baseline_transform
     except:
-        print('baseline not found')
+        print('Baseline not found')
         baseline_id = None
-    result_baseline = results_all[baseline_id[0]]
-    for i in range(result_baseline.shape[0]):
-        result_final.append(np.array([node_num, 1, 0, 0, 1, 1, result_baseline[i, 3], 1]))
-    result_final = np.stack(result_final, axis=0)
 
+    if baseline_id is not None:
+        result_baseline = results_all[baseline_id[0]]
+        for i in range(result_baseline.shape[0]):
+            result_final.append(np.array([node_num, 1, 0, 0, 1, 1, result_baseline[i, 3], 1]))
+
+    result_final = np.array(result_final)  # Convert to NumPy array
+
+    # Bin-related logic
     bin_num = 52
     result_plot = result_final
-    ### node=64
-    # 3942 graphs
-    if bin_num == 3942:
-        bins_clustering = np.linspace(0, 1, 15 * 9 + 1)  # clustering
-        bins_path = np.linspace(1, 4.5, 15 * 9 + 1)  # path
-        bins_sparsity = np.linspace(0, 1, 15 * 9 + 1)  # sparsity
-    # 449 graphs
-    if bin_num == 449:
-        bins_clustering = np.linspace(0, 1, 15 * 3 + 1)  # clustering
-        bins_path = np.linspace(1, 4.5, 15 * 3 + 1)  # path
-        bins_sparsity = np.linspace(0, 1, 15 * 3 + 1)  # sparsity
-    # 52 graphs
+
     if bin_num == 52:
-        bins_clustering = np.linspace(0, 1, 15 + 1)  # clustering
-        bins_path = np.linspace(1, 4.5, 15 + 1)  # path
-        bins_sparsity = np.linspace(0, 1, 15 + 1)  # sparsity
-        # filter to 52 graphs, if necessary
-        graph_configs_52 = np.load('graphs_n64_52.npy')
+        bins_clustering = np.linspace(0, 1, 15 + 1)  # Clustering
+        bins_path = np.linspace(1, 4.5, 15 + 1)  # Path
+        bins_sparsity = np.linspace(0, 1, 15 + 1)  # Sparsity
+        graph_configs_52 = np.load(f'/Users/khoapham/msu/graph2nn/analysis/graphs_n64_52.npy')
         graph_configs_52 = np.concatenate((graph_configs_52, [[-1, -1, -1, -1, 1, 1]]))
 
-    # clustering: 4; path: 5
+    # Path, clustering
     digits_clustering = np.digitize(result_plot[:, 4], bins_clustering, right=True)
     digits_path = np.digitize(result_plot[:, 5], bins_path)
 
-    ### path, clustering
     result_sum = np.zeros((len(bins_path) + 1, len(bins_clustering) + 1))
     result_count = np.zeros((len(bins_path) + 1, len(bins_clustering) + 1))
-    result_collection = {}
-    measure_collection = {}
+
     for i in range(digits_clustering.shape[0]):
         result_sum[digits_path[i], digits_clustering[i]] += result_plot[i, -2]
         result_count[digits_path[i], digits_clustering[i]] += 1
-        if digits_clustering[i] + 1 < bins_clustering.shape[0] and digits_path[i] + 1 < bins_path.shape[0]:
-            clustering = (bins_clustering[digits_clustering[i] - 1] + bins_clustering[digits_clustering[i]]) / 2
-            path = (bins_path[digits_path[i] - 1] + bins_path[digits_path[i]]) / 2
-        else:
-            clustering = bins_clustering[digits_clustering[i]]
-            path = bins_path[digits_path[i]]
-        if result_collection.get((digits_path[i], digits_clustering[i])) is None:
-            result_collection[(digits_path[i], digits_clustering[i])] = [result_plot[i, -2]]
-        else:
-            result_collection[(digits_path[i], digits_clustering[i])].append(result_plot[i, -2])
-        measure_collection[(digits_path[i], digits_clustering[i])] = [clustering, path]
 
-    result_mean = result_sum / result_count
-    result_temp = result_mean.copy()
-    result_temp[np.isnan(result_temp)] = 100
-    best_id = np.unravel_index(result_temp.argmin(), result_temp.shape)
-    result_best = result_collection[best_id]
-    print('best', result_best)
-    significant = []
-    for key, val in result_collection.items():
-        stats, p = ttest_ind(result_best, val)
-        if stats < 0 and p / 2 < 0.05:
-            pass
-        else:
-            significant.append(key)
-
-    measures = []
-    for key in significant:
-        measures.append(measure_collection[key])
-    measures = np.array(measures)
-    sweet_spot = [measures[:, 0].min(), measures[:, 1].min(),
-                  measures[:, 0].max() - measures[:, 0].min(),
-                  measures[:, 1].max() - measures[:, 1].min(), ]
-    print('sweet spot clustering min {}, max {}'.format(measures[:, 0].min(), measures[:, 0].max()))
-    print('sweet spot path min {}, max {}'.format(measures[:, 1].min(), measures[:, 1].max()))
+    # Avoid divide by zero
+    result_mean = np.divide(result_sum, result_count, where=result_count != 0)
+    result_mean[result_count == 0] = np.nan  # Explicitly set empty bins to NaN
 
     if return_sweet_spot:
-        return result_final, sweet_spot
+        return result_final, result_mean
     else:
         return result_final
+
 
 
 def sort_results(names_all, results_all):
@@ -335,120 +301,58 @@ def extend_bin(bin):
 ### 2-D graph stats vs. NN performance
 def plot_2d(result_final, task_name, bin_num, simple=False, mark_best=True, sweet_spot=None, save_npy=False):
     cbar_label = 'Top-1 Error (%)'
-    result_plot = result_final
+    result_plot = np.array(result_final)  # Ensure result_final is a NumPy array
 
-    ### node=64
-    # 3942 graphs
+    ### Node = 64
+    # Bin definitions
     if bin_num == 3942:
-        bins_clustering = np.linspace(0, 1, 15 * 9 + 1)  # clustering
-        bins_path = np.linspace(1, 4.5, 15 * 9 + 1)  # path
-        bins_sparsity = np.linspace(0, 1, 15 * 9 + 1)  # sparsity
-    # 449 graphs
-    if bin_num == 449:
-        bins_clustering = np.linspace(0, 1, 15 * 3 + 1)  # clustering
-        bins_path = np.linspace(1, 4.5, 15 * 3 + 1)  # path
-        bins_sparsity = np.linspace(0, 1, 15 * 3 + 1)  # sparsity
-    # 52 graphs
-    if bin_num == 52:
-        bins_clustering = np.linspace(0, 1, 15 + 1)  # clustering
-        bins_path = np.linspace(1, 4.5, 15 + 1)  # path
-        bins_sparsity = np.linspace(0, 1, 15 + 1)  # sparsity
-        # filter to 52 graphs, if necessary
-        graph_configs_52 = np.load('graphs_n64_52.npy')
-        graph_configs_52 = np.concatenate((graph_configs_52, [[-1, -1, -1, -1, 1, 1]]))
-    ### node=16
-    # 48 graphs
-    if bin_num == 48:
-        bins_clustering = np.linspace(0, 1, 12 + 1)  # clustering
-        bins_path = np.linspace(1, 2.5, 12 + 1)  # path
-    # 326 graphs
-    if bin_num == 326:
-        bins_clustering = np.linspace(0, 1, 12 * 3 + 1)  # clustering
-        bins_path = np.linspace(1, 2.5, 12 * 3 + 1)  # path
-    # 2698 graphs
-    if bin_num == 2698:
-        bins_clustering = np.linspace(0, 1, 12 * 9 + 1)  # clustering
-        bins_path = np.linspace(1, 2.5, 12 * 9 + 1)  # path
+        bins_clustering = np.linspace(0, 1, 15 * 9 + 1)
+        bins_path = np.linspace(1, 4.5, 15 * 9 + 1)
+    elif bin_num == 449:
+        bins_clustering = np.linspace(0, 1, 15 * 3 + 1)
+        bins_path = np.linspace(1, 4.5, 15 * 3 + 1)
+    elif bin_num == 52:
+        bins_clustering = np.linspace(0, 1, 15 + 1)
+        bins_path = np.linspace(1, 4.5, 15 + 1)
 
-    # clustering: 4; path: 5
+    # Clustering: Column 4; Path: Column 5
     digits_clustering = np.digitize(result_plot[:, 4], bins_clustering, right=True)
     digits_path = np.digitize(result_plot[:, 5], bins_path)
-    print('clustering', digits_clustering.min(), digits_clustering.max(), len(bins_clustering))
-    print('path', digits_path.min(), digits_path.max(), len(bins_path))
 
-    ### path, clustering
     result_sum = np.zeros((len(bins_path) + 1, len(bins_clustering) + 1))
     result_count = np.zeros((len(bins_path) + 1, len(bins_clustering) + 1))
+
     for i in range(digits_clustering.shape[0]):
         result_sum[digits_path[i], digits_clustering[i]] += result_plot[i, -2]
         result_count[digits_path[i], digits_clustering[i]] += 1
-    result_mean = result_sum / result_count
 
-    ### filter to 52 graphs
-    if bin_num == 52:
-        digits_clustering_52 = np.digitize(graph_configs_52[:, -2], bins_clustering, right=True)
-        digits_path_52 = np.digitize(graph_configs_52[:, -1], bins_path)
-        result_mean_filtered = np.empty((len(bins_path) + 1, len(bins_clustering) + 1))
-        result_mean_filtered[:] = np.nan
-        for i in range(graph_configs_52.shape[0]):
-            result_mean_filtered[digits_path_52[i], digits_clustering_52[i]] = result_mean[
-                digits_path_52[i], digits_clustering_52[i]]
-        result_mean = result_mean_filtered
+    # Safely handle division by zero
+    result_mean = np.zeros_like(result_sum)
+    nonzero_mask = result_count != 0
+    result_mean[nonzero_mask] = result_sum[nonzero_mask] / result_count[nonzero_mask]
+    result_mean[~nonzero_mask] = np.nan  # Set invalid bins to NaN
 
-    # path
-    color = result_mean
-    len_max = 0
-    col_id = 0
-    for i in range(color.shape[1]):
-        color_col = color[:, i]
-        len_cur = len(color_col[~np.isnan(color_col)])
-        if len_cur > len_max:
-            len_max = len_cur
-            col_id = i
-
-    color_col = color[:, col_id]
-    color_col = color_col[~np.isnan(color_col)]
-
-    ### plot
+    ### Plotting
     sns.set_context("poster")
     fig = plt.figure(figsize=(15, 20))
     ax = fig.gca()
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
 
-    ##### Note: the x,y ordering is reversed for plotting
-    ### path, clustering
-    surf = ax.pcolorfast(extend_bin(bins_clustering), extend_bin(bins_path), color,
-                         cmap=plt.cm.Blues_r, vmin=color[~np.isnan(color)].min(), vmax=color[~np.isnan(color)].max())
-    if mark_best:
-        if 'cifar' in task_name and bin_num == 3942:
-            best_id = 3552
-            plt.scatter(result_plot[best_id, 4], result_plot[best_id, 5],
-                        s=500, linewidth=10, c='#b02318', marker='x')
-        if 'cnn6_imagenet' in task_name:
-            best_id = 27
-            plt.scatter(result_plot[best_id, 4], result_plot[best_id, 5],
-                        s=500, linewidth=10, c='#b02318', marker='x')
-        if 'resnet34_imagenet' in task_name:
-            best_id = 37
-            plt.scatter(result_plot[best_id, 4], result_plot[best_id, 5],
-                        s=500, linewidth=10, c='#b02318', marker='x')
-        if 'resnet34_sep_imagenet' in task_name:
-            best_id = 36
-            plt.scatter(result_plot[best_id, 4], result_plot[best_id, 5],
-                        s=500, linewidth=10, c='#b02318', marker='x')
-        if 'resnet50_imagenet' in task_name:
-            best_id = 22
-            plt.scatter(result_plot[best_id, 4], result_plot[best_id, 5],
-                        s=500, linewidth=10, c='#b02318', marker='x')
-        if 'efficient_imagenet' in task_name:
-            best_id = 42
-            plt.scatter(result_plot[best_id, 4], result_plot[best_id, 5],
-                        s=500, linewidth=10, c='#b02318', marker='x')
+    # Heatmap
+    surf = ax.pcolorfast(
+        extend_bin(bins_clustering), extend_bin(bins_path), result_mean,
+        cmap=plt.cm.Blues_r,
+        vmin=np.nanmin(result_mean), vmax=np.nanmax(result_mean)
+    )
 
-    if sweet_spot is not None:
-        rect = patches.Rectangle((sweet_spot[0], sweet_spot[1]), sweet_spot[2], sweet_spot[3],
-                                 linewidth=5, edgecolor='#b02318', facecolor='none', linestyle='--')
+    if mark_best and sweet_spot is not None and len(sweet_spot) == 4:
+        rect = patches.Rectangle(
+            (float(sweet_spot[0]), float(sweet_spot[1])),
+            float(sweet_spot[2]),
+            float(sweet_spot[3]),
+            linewidth=5, edgecolor='#b02318', facecolor='none', linestyle='--'
+        )
         ax.add_patch(rect)
 
     if simple:
@@ -462,33 +366,18 @@ def plot_2d(result_final, task_name, bin_num, simple=False, mark_best=True, swee
         plt.xticks(fontsize=40)
         plt.yticks([1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5], fontsize=40)
 
-    plt.gca().tick_params(axis='x', pad=15)
-    plt.gca().tick_params(axis='y', pad=15)
+    cbar = fig.colorbar(surf, shrink=0.8, aspect=16, pad=0.15, orientation='horizontal')
+    tick_locator = ticker.MaxNLocator(nbins=4)
+    cbar.locator = tick_locator
+    cbar.update_ticks()
 
-    if 'cifar' in task_name and bin_num == 52:
-        cbar = fig.colorbar(surf, shrink=0.8, aspect=16, pad=0.15, orientation='horizontal',
-                            ticks=[32.5, 32.9, 33.3])
-    else:
-        cbar = fig.colorbar(surf, shrink=0.8, aspect=16, pad=0.15, orientation='horizontal')
-        tick_locator = ticker.MaxNLocator(nbins=4)
-        cbar.locator = tick_locator
-        cbar.update_ticks()
+    cbar.set_label(cbar_label, rotation=0, labelpad=10, fontsize=48)
+    cbar.ax.tick_params(labelsize=40)
 
-    if simple:
-        cbar.set_label(cbar_label, rotation=0, labelpad=10, fontsize=56)
-        cbar.ax.tick_params(labelsize=56)
-    else:
-        cbar.set_label(cbar_label, rotation=0, labelpad=10, fontsize=48)
-        cbar.ax.tick_params(labelsize=40)
-
-    if simple:
-        plt.savefig('/Users/khoapham/msu/graph2nn/analysis/final_results/figs/{}_resolution{}_simple.png'.format(task_name, bin_num), dpi=100,
-                    bbox_inches='tight')
-    else:
-        plt.savefig('/Users/khoapham/msu/graph2nn/analysis/final_results/figs/{}_resolution{}.png'.format(task_name, bin_num), dpi=125, bbox_inches='tight')
+    plt.savefig(f'/Users/khoapham/msu/graph2nn/analysis/final_results/figs/{task_name}_resolution{bin_num}.png', dpi=125, bbox_inches='tight')
 
     if save_npy:
-        np.save('/Users/khoapham/msu/graph2nn/analysis/final_results/npys/{}_resolution{}.npy'.format(task_name, bin_num), color[~np.isnan(color)])
+        np.save(f'/Users/khoapham/msu/graph2nn/analysis/final_results/npys/{task_name}_resolution{bin_num}.npy', result_mean[~np.isnan(result_mean)])
 
 
 ### 1-D slice of graph stats vs. NN performance
