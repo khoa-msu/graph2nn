@@ -90,7 +90,9 @@ def connected_ws_graph(n, k, p, tries=100, seed=1):
 def nx_to_edge(graph, directed=False, add_self_loops=True,
                shuffle_id=False, seed=1):
     '''nx graph to edge index'''
-    graph.remove_edges_from(graph.selfloop_edges())
+    # graph.remove_edges_from(graph.selfloop_edges())
+    self_loops = [(node, node) for node in graph.nodes if graph.has_edge(node, node)]
+    graph.remove_edges_from(self_loops)
     # relabel graphs
     keys = list(graph.nodes)
     vals = list(range(graph.number_of_nodes()))

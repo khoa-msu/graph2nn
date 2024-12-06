@@ -19,6 +19,7 @@ from pycls.models.vgg import VGG
 
 import pycls.utils.logging as lu
 import pycls.utils.metrics as mu
+from pycls.models.vistransformer import VisionTransformer
 
 logger = lu.get_logger(__name__)
 
@@ -30,6 +31,7 @@ _MODEL_TYPES = {
     'mobilenet': MobileNetV1,
     'efficientnet': EfficientNet,
     'vgg': VGG,
+    'vitnet': VisionTransformer
 }
 
 

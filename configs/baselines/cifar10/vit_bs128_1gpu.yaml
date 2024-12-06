@@ -1,0 +1,46 @@
+MODEL:
+  TYPE: vitnet  # Specifies the Vision Transformer model
+  NUM_CLASSES: 10  # CIFAR-10 has 10 classes
+
+VIT:
+  IMG_SIZE: 32  # CIFAR-10 image size
+  PATCH_SIZE: 4  # Patch size (4x4 patches for 32x32 images results in 8x8=64 patches)
+  EMBED_DIM: 256  # Embedding dimension for each patch
+  DEPTH: 12  # Number of transformer encoder layers
+  NUM_HEADS: 8  # Number of attention heads in each encoder layer
+  MLP_RATIO: 4.0  # MLP expansion factor (hidden dim = EMBED_DIM * MLP_RATIO)
+  DROPOUT: 0.1  # Dropout rate
+
+BN:
+  USE_PRECISE_STATS: True
+  NUM_SAMPLES_PRECISE: 1024
+
+OPTIM:
+  BASE_LR: 0.003  # Lowered learning rate for stability with smaller datasets
+  LR_POLICY: cos  # Cosine learning rate schedule
+  MAX_EPOCH: 200  # Increased epochs for better convergence on CIFAR-10
+  MOMENTUM: 0.9
+  NESTEROV: True
+  WEIGHT_DECAY: 0.0001  # Adjusted for smaller dataset
+
+TRAIN:
+  DATASET: cifar10  # Specifies the CIFAR-10 dataset
+  SPLIT: train
+  BATCH_SIZE: 128  # Training batch size
+  EVAL_PERIOD: 1  # Evaluate every epoch
+  CHECKPOINT_PERIOD: 50  # Save checkpoints every 50 epochs
+
+TEST:
+  DATASET: cifar10  # Specifies the CIFAR-10 dataset
+  SPLIT: test
+  BATCH_SIZE: 100  # Test batch size
+
+NUM_GPUS: 1  # Single GPU for training
+
+DATA_LOADER:
+  NUM_WORKERS: 4  # Number of data loader workers
+
+CUDNN:
+  BENCHMARK: True  # Enable CUDNN benchmark for faster performance
+
+OUT_DIR: ./output/vit_cifar10  # Specify output directory
